@@ -1,9 +1,9 @@
-from dataclasses import dataclass
-
+import dataclasses
+from typing import List
 import asyncpg
 
 
-@dataclass
+@dataclasses.dataclass
 class ItemEntry:
     item_id: int
     user_id: int
@@ -37,21 +37,50 @@ class ItemStorage:
         """
         # In production environment we will use migration tool
         # like https://github.com/pressly/goose
-        # YOUR CODE GOES HERE
 
-    async def save_items(self, items: list[ItemEntry]) -> None:
+        # явно не написано, что item_id - primary key
+        # но я решил, что если он unique и он единственный такой,
+        # то он будет primary key (не думаю, что туда можно пихать null)
+        await self._pool.execute("""
+                                 CREATE TABLE items(
+                                 item_id INT PRIMARY KEY,
+                                 user_id INT NOT NULL,
+                                 title TEXT NOT NULL,
+                                 description TEXT NOT NULL
+                                 );
+                                 """)
+
+    async def save_items(self, items: List[ItemEntry]) -> None:
         """
         Напишите код для вставки записей в таблицу items одним запросом, цикл
         использовать нельзя.
         """
         # Don't use str-formatting, query args should be escaped to avoid
         # sql injections https://habr.com/ru/articles/148151/.
-        # YOUR CODE GOES HERE
+
+        await self._pool.executemany(
+            """
+            INSERT INTO items (item_id, user_id, title, description)
+                VALUES ($1, $2, $3, $4);
+        """,
+            [dataclasses.astuple(item) for item in items],
+        )
 
     async def find_similar_items(
         self, user_id: int, title: str, description: str
-    ) -> list[ItemEntry]:
+    ) -> List[ItemEntry]:
         """
-        Напишите код для поиска записей, имеющих указанные user_id, title и description.
+        Напишите код для поиска записей, имеющих указанные user_id, title и
+        description.
         """
-        # YOUR CODE GOES HERE
+        query = """
+            SELECT * FROM items
+            WHERE user_id = $1 AND
+            title = $2 AND
+            description = $3;
+            """
+
+        rows = await self._pool.fetch(query, user_id, f"{title}",
+                                      f"{description}")
+
+        return [ItemEntry(*row) for row in rows]
