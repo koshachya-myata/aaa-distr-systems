@@ -1,4 +1,5 @@
 import redis.asyncio as aredis
+from typing import List
 
 
 class UsersByTitleStorage:
@@ -17,11 +18,12 @@ class UsersByTitleStorage:
         можно было за один запрос получить список уникальных пользователей,
         имеющих объявления с заданным заголовком.
         """
-        # YOUR CODE GOES HERE
+        await self._client.sadd(title, user_id)
 
-    async def find_users_by_title(self, title: str) -> list[int]:
+    async def find_users_by_title(self, title: str) -> List[int]:
         """
-        Напишите код для поиска уникальных user_id, имеющих хотя бы одно объявление
-        с заданным title.
+        Напишите код для поиска уникальных user_id,
+        имеющих хотя бы одно объявление с заданным title.
         """
-        # YOUR CODE GOES HERE
+        res = await self._client.smembers(title)
+        return list(map(int, res))
